@@ -1,0 +1,17 @@
+# pack-refs with: peeled fully-peeled sorted 
+935f98901b2f4450ab40ceb67956417d160d151d refs/heads/backup-Sistema_210426_Ok
+24c3d0f34d94364203b85e5e177365248c1faeeb refs/heads/backup-Sistema_OK_210426
+94156b43769a00002582940fc0d9dd61dba88a36 refs/heads/backup-cards
+4fed757b35711de22005895c9d04676fbc259794 refs/heads/backup-pdf
+0c07af5178fa16604acddbe2dd4f6479716de648 refs/heads/certificado-pdf
+3216afa8be1b75d0ee800b0f3cbf06128e7b22aa refs/heads/main
+6401810cc278b3745da6ca587601b85ead40adea refs/heads/master
+935f98901b2f4450ab40ceb67956417d160d151d refs/tags/Sistema_210426_Ok
+4fed757b35711de22005895c9d04676fbc259794 refs/tags/Sistema_OK_200426
+24c3d0f34d94364203b85e5e177365248c1faeeb refs/tags/Sistema_OK_210426
+94156b43769a00002582940fc0d9dd61dba88a36 refs/tags/V3_CARDS_SAFE
+8fef84ba7e8d4a3e2fd9afbce874797ad7db584f refs/tags/V3_ESTAVEL
+fb90c895cd5a1f6f43be0e2c97ca03ccd94991e0 refs/tags/backup-pdf-ok
+c3656196ac9bfce7f3137b3d85436a831d72e856 refs/tags/tagcheck-estavel
+cbf91e798390bfc090684d505ed9e3e29222137a refs/tags/tagcheck-v4-estavel
+0b9282bc7bfa5f629c7ab897cade6376dc432362 refs/tags/v3.0-recuperado

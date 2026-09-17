@@ -1,0 +1,1 @@
+Arquivos do Viewer embutidos no APK. Abre localmente sem internet e usa API quando houver sinal.
