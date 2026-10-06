@@ -7,7 +7,7 @@
   <title>TAGCheck Campo Offline</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" type="image/png" href="./public/favicon.png" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=20261006-multiempresa" />
 </head>
 <body>
   <div class="app-shell">
@@ -80,18 +80,18 @@
         </form>
 
         <aside class="card side-card">
-          <h3>Configuração</h3>
-          <label>API TAGCheck</label>
-          <input id="apiBase" placeholder="https://tag-1-xfzk.onrender.com" />
+          <h3>Empresa ativa</h3>
+          <div id="companyContext" class="small">Carregando contexto...</div>
+          <label>API TAGCheck V2</label>
+          <input id="apiBase" value="https://tagcheck-fase2-hml-api.onrender.com" readonly />
+          <p class="small">Preferencial: abra este formulário pelo botão <strong>Cadastro Offline</strong> dentro do Admin V2. A empresa selecionada será vinculada automaticamente.</p>
+          <h3>Login alternativo</h3>
           <div class="two-cols">
-            <div><label>Usuário admin</label><input id="loginUser" placeholder="admin" /></div>
+            <div><label>E-mail/usuário</label><input id="loginUser" placeholder="usuario@empresa.com" /></div>
             <div><label>Senha</label><input id="loginPass" type="password" /></div>
           </div>
-          <button id="loginBtn" type="button" class="secondary">Entrar e salvar token</button>
-          <label>Token salvo</label>
-          <input id="token" placeholder="Bearer token" />
-          <button id="saveConfigBtn" type="button" class="outline">Salvar configuração</button>
-          <p class="small">Faça login uma vez com internet. Depois pode cadastrar offline e sincronizar mais tarde.</p>
+          <button id="loginBtn" type="button" class="secondary">Validar empresa</button>
+          <p class="small">Se o usuário possuir mais de uma empresa, a seleção deve ser feita no Admin V2.</p>
 
           <h3>Backup local</h3>
           <div class="actions stacked">
@@ -112,6 +112,6 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=20261006-multiempresa"></script>
 </body>
 </html>
