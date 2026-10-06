@@ -11,6 +11,7 @@ const ALLOWED_ADMIN_ORIGINS = new Set([
 
 let db = null;
 let dbCompanyId = null;
+let storageMode = 'indexedDB';
 let deferredPrompt;
 
 const $ = id => document.getElementById(id);
@@ -106,49 +107,109 @@ function dbName(companyId) {
   return `${DB_PREFIX}${id}`;
 }
 
+function fallbackStorageKey(companyId) {
+  const id = Number(companyId);
+  if (!Number.isInteger(id) || id <= 0) throw new Error('Empresa offline inválida.');
+  return `tagcheck_campo_fallback_company_${id}`;
+}
+
+function readFallbackStore(companyId) {
+  const id = Number(companyId);
+  try {
+    const parsed = JSON.parse(localStorage.getItem(fallbackStorageKey(id)) || 'null');
+    if (!parsed || Number(parsed.company_id) !== id || !Array.isArray(parsed.items)) {
+      return { company_id: id, next_id: 1, items: [] };
+    }
+    parsed.next_id = Number(parsed.next_id || 1);
+    return parsed;
+  } catch {
+    return { company_id: id, next_id: 1, items: [] };
+  }
+}
+
+function writeFallbackStore(companyId, data) {
+  const id = Number(companyId);
+  localStorage.setItem(fallbackStorageKey(id), JSON.stringify({
+    company_id: id,
+    next_id: Number(data.next_id || 1),
+    items: Array.isArray(data.items) ? data.items : []
+  }));
+}
+
+async function blobToDataUrlValue(blob) {
+  if (!blob) return '';
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Falha ao converter a foto offline.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function dataUrlToBlobValue(dataUrl) {
+  if (!dataUrl) return null;
+  const [head, b64] = String(dataUrl).split(',');
+  const mime = (head?.match(/data:(.*?);base64/) || [])[1] || 'image/jpeg';
+  const bin = atob(b64 || '');
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
 async function openDb(companyId) {
   const id = Number(companyId);
+  if (storageMode === 'fallback') {
+    dbCompanyId = id;
+    return null;
+  }
   if (db && dbCompanyId === id) return db;
   if (db) db.close();
 
-  db = await new Promise((resolve, reject) => {
-    const req = indexedDB.open(dbName(id), 1);
-    req.onupgradeneeded = () => {
-      const database = req.result;
-      if (!database.objectStoreNames.contains(STORE)) {
-        const store = database.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
-        store.createIndex('tag', 'tag', { unique: false });
-        store.createIndex('created_at', 'created_at', { unique: false });
-        store.createIndex('company_id', 'company_id', { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(new Error(`Falha no armazenamento offline local (${req.error?.name || 'erro desconhecido'}).`));
-  });
-  dbCompanyId = id;
-  return db;
-}
+  if (!('indexedDB' in window)) {
+    storageMode = 'fallback';
+    dbCompanyId = id;
+    return null;
+  }
 
-async function storeRequest(mode, fn) {
-  const context = currentContext();
-  if (!context) throw new Error('Empresa offline não validada ou sessão expirada.');
-  const database = await openDb(context.company_id);
-  return new Promise((resolve, reject) => {
-    const tx = database.transaction(STORE, mode);
-    const store = tx.objectStore(STORE);
-    let result;
-    try { result = fn(store); }
-    catch (error) { reject(error); return; }
-    tx.oncomplete = () => resolve(result);
-    tx.onerror = () => reject(tx.error || new Error('Falha no armazenamento offline.'));
-    tx.onabort = () => reject(tx.error || new Error('Transação offline cancelada.'));
-  });
+  try {
+    db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open(dbName(id), 1);
+      req.onupgradeneeded = () => {
+        const database = req.result;
+        if (!database.objectStoreNames.contains(STORE)) {
+          const store = database.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+          store.createIndex('tag', 'tag', { unique: false });
+          store.createIndex('created_at', 'created_at', { unique: false });
+          store.createIndex('company_id', 'company_id', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('IndexedDB indisponível.'));
+      req.onblocked = () => reject(new Error('IndexedDB bloqueado.'));
+    });
+    dbCompanyId = id;
+    return db;
+  } catch (error) {
+    console.warn('IndexedDB indisponível; usando armazenamento local alternativo.', error);
+    storageMode = 'fallback';
+    db = null;
+    dbCompanyId = id;
+    return null;
+  }
 }
 
 async function getAllPending() {
   const context = currentContext();
   if (!context) return [];
   const database = await openDb(context.company_id);
+
+  if (storageMode === 'fallback' || !database) {
+    const data = readFallbackStore(context.company_id);
+    return data.items
+      .filter(item => Number(item.company_id) === context.company_id)
+      .map(item => ({ ...item, photo_blob: dataUrlToBlobValue(item.photo_data_url) }));
+  }
+
   const rows = await new Promise((resolve, reject) => {
     const req = database.transaction(STORE, 'readonly').objectStore(STORE).getAll();
     req.onsuccess = () => resolve(req.result || []);
@@ -163,6 +224,25 @@ async function addPending(item) {
   item.company_id = context.company_id;
   item.user_id = context.user_id;
   const database = await openDb(context.company_id);
+
+  if (storageMode === 'fallback' || !database) {
+    const data = readFallbackStore(context.company_id);
+    const id = data.next_id++;
+    const serializable = {
+      ...item,
+      id,
+      photo_blob: undefined,
+      photo_data_url: await blobToDataUrlValue(item.photo_blob)
+    };
+    data.items.push(serializable);
+    try {
+      writeFallbackStore(context.company_id, data);
+    } catch (error) {
+      throw new Error('Armazenamento offline local cheio. Reduza o tamanho da foto ou sincronize os pendentes.');
+    }
+    return id;
+  }
+
   return new Promise((resolve, reject) => {
     const req = database.transaction(STORE, 'readwrite').objectStore(STORE).add(item);
     req.onsuccess = () => resolve(req.result);
@@ -174,6 +254,18 @@ async function deletePending(id) {
   const context = currentContext();
   if (!context) throw new Error('Empresa offline inválida.');
   const database = await openDb(context.company_id);
+
+  if (storageMode === 'fallback' || !database) {
+    const data = readFallbackStore(context.company_id);
+    const item = data.items.find(row => Number(row.id) === Number(id));
+    if (!item || Number(item.company_id) !== context.company_id) {
+      throw new Error('Cadastro não pertence à empresa ativa.');
+    }
+    data.items = data.items.filter(row => Number(row.id) !== Number(id));
+    writeFallbackStore(context.company_id, data);
+    return;
+  }
+
   const item = await new Promise((resolve, reject) => {
     const req = database.transaction(STORE, 'readonly').objectStore(STORE).get(Number(id));
     req.onsuccess = () => resolve(req.result || null);
@@ -541,6 +633,9 @@ async function init() {
   if (context) {
     await openDb(context.company_id);
     await renderPending();
+    if (storageMode === 'fallback') {
+      toast('Modo offline alternativo ativado neste navegador.', 'ok');
+    }
   } else {
     $('pendingList').innerHTML = '<p class="small">Abra pelo Admin V2 para ativar uma empresa neste dispositivo.</p>';
   }
