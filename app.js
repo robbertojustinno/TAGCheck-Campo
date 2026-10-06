@@ -1,4 +1,4 @@
-const DB_PREFIX = 'tagcheck_campo_offline_company_';
+const DB_PREFIX = 'tagcheck_campo_offline_v2_company_';
 const STORE = 'pending_equipment';
 const CONTEXT_KEY = 'tagcheck_campo_active_context_v2';
 const TOKEN_KEY = 'tagcheck_campo_session_token_v2';
@@ -123,7 +123,7 @@ async function openDb(companyId) {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error('Falha ao abrir armazenamento offline.'));
+    req.onerror = () => reject(new Error(`Falha no armazenamento offline local (${req.error?.name || 'erro desconhecido'}).`));
   });
   dbCompanyId = id;
   return db;
