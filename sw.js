@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tagcheck-campo-offline-v2-multiempresa';
+const CACHE_NAME = 'tagcheck-campo-offline-v3-multiempresa';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js',
   './manifest.webmanifest', './public/logo.png', './public/favicon.png'
