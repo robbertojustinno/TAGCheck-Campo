@@ -18,7 +18,7 @@ const $ = id => document.getElementById(id);
 
 function toast(msg, type='') {
   const el = $('toast');
-  el.textContent = msg;
+  el.textContent = tcL(msg);
   el.className = `toast ${type}`;
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 3500);
@@ -61,7 +61,7 @@ function normalizeContext(raw) {
 
 function saveContext(raw) {
   const context = normalizeContext(raw);
-  if (!context) throw new Error('Contexto da empresa inválido.');
+  if (!context) throw new Error(tcL('Contexto da empresa inválido.'));
   localStorage.setItem(CONTEXT_KEY, JSON.stringify(context));
   renderCompanyContext();
   return context;
@@ -83,13 +83,13 @@ function currentToken() {
 }
 
 function setSession(token, context) {
-  if (!token) throw new Error('Sessão inválida.');
+  if (!token) throw new Error(tcL('Sessão inválida.'));
   const claims = parseJwt(token);
   const tokenCompany = claims?.company_id == null ? null : Number(claims.company_id);
   const normalized = normalizeContext(context);
-  if (!normalized) throw new Error('Empresa da sessão inválida.');
+  if (!normalized) throw new Error(tcL('Empresa da sessão inválida.'));
   if (tokenCompany != null && tokenCompany !== normalized.company_id) {
-    throw new Error('Empresa do token não corresponde à empresa selecionada.');
+    throw new Error(tcL('Empresa do token não corresponde à empresa selecionada.'));
   }
   sessionStorage.setItem(TOKEN_KEY, token);
   normalized.expires_at = normalized.expires_at || tokenExpiryMs(token);
@@ -103,13 +103,13 @@ function clearSession() {
 
 function dbName(companyId) {
   const id = Number(companyId);
-  if (!Number.isInteger(id) || id <= 0) throw new Error('Empresa offline inválida.');
+  if (!Number.isInteger(id) || id <= 0) throw new Error(tcL('Empresa offline inválida.'));
   return `${DB_PREFIX}${id}`;
 }
 
 function fallbackStorageKey(companyId) {
   const id = Number(companyId);
-  if (!Number.isInteger(id) || id <= 0) throw new Error('Empresa offline inválida.');
+  if (!Number.isInteger(id) || id <= 0) throw new Error(tcL('Empresa offline inválida.'));
   return `tagcheck_campo_fallback_company_${id}`;
 }
 
@@ -141,7 +141,7 @@ async function blobToDataUrlValue(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(reader.error || new Error('Falha ao converter a foto offline.'));
+    reader.onerror = () => reject(reader.error || new Error(tcL('Falha ao converter a foto offline.')));
     reader.readAsDataURL(blob);
   });
 }
@@ -184,8 +184,8 @@ async function openDb(companyId) {
         }
       };
       req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error || new Error('IndexedDB indisponível.'));
-      req.onblocked = () => reject(new Error('IndexedDB bloqueado.'));
+      req.onerror = () => reject(req.error || new Error(tcL('IndexedDB indisponível.')));
+      req.onblocked = () => reject(new Error(tcL('IndexedDB bloqueado.')));
     });
     dbCompanyId = id;
     return db;
@@ -220,7 +220,7 @@ async function getAllPending() {
 
 async function addPending(item) {
   const context = currentContext();
-  if (!context) throw new Error('Entre online no Admin e selecione a empresa antes de cadastrar offline.');
+  if (!context) throw new Error(tcL('Entre online no Admin e selecione a empresa antes de cadastrar offline.'));
   item.company_id = context.company_id;
   item.user_id = context.user_id;
   const database = await openDb(context.company_id);
@@ -238,7 +238,7 @@ async function addPending(item) {
     try {
       writeFallbackStore(context.company_id, data);
     } catch (error) {
-      throw new Error('Armazenamento offline local cheio. Reduza o tamanho da foto ou sincronize os pendentes.');
+      throw new Error(tcL('Armazenamento offline local cheio. Reduza o tamanho da foto ou sincronize os pendentes.'));
     }
     return id;
   }
@@ -252,14 +252,14 @@ async function addPending(item) {
 
 async function deletePending(id) {
   const context = currentContext();
-  if (!context) throw new Error('Empresa offline inválida.');
+  if (!context) throw new Error(tcL('Empresa offline inválida.'));
   const database = await openDb(context.company_id);
 
   if (storageMode === 'fallback' || !database) {
     const data = readFallbackStore(context.company_id);
     const item = data.items.find(row => Number(row.id) === Number(id));
     if (!item || Number(item.company_id) !== context.company_id) {
-      throw new Error('Cadastro não pertence à empresa ativa.');
+      throw new Error(tcL('Cadastro não pertence à empresa ativa.'));
     }
     data.items = data.items.filter(row => Number(row.id) !== Number(id));
     writeFallbackStore(context.company_id, data);
@@ -271,7 +271,7 @@ async function deletePending(id) {
     req.onsuccess = () => resolve(req.result || null);
     req.onerror = () => reject(req.error);
   });
-  if (!item || Number(item.company_id) !== context.company_id) throw new Error('Cadastro não pertence à empresa ativa.');
+  if (!item || Number(item.company_id) !== context.company_id) throw new Error(tcL('Cadastro não pertence à empresa ativa.'));
   return new Promise((resolve, reject) => {
     const req = database.transaction(STORE, 'readwrite').objectStore(STORE).delete(Number(id));
     req.onsuccess = () => resolve();
@@ -292,31 +292,31 @@ function renderCompanyContext() {
   if (!box) return;
   const context = currentContext({allowExpired:true});
   if (!context) {
-    box.innerHTML = '<strong>Nenhuma empresa validada.</strong><br><span class="small">Abra este cadastro pelo Admin V2 para vincular a empresa.</span>';
+    box.innerHTML = tcH('<strong>Nenhuma empresa validada.</strong><br><span class="small">Abra este cadastro pelo Admin V2 para vincular a empresa.</span>');
     return;
   }
   const expired = context.expires_at && Date.now() >= context.expires_at;
-  box.innerHTML = `<strong>Empresa ativa:</strong> ${escapeHtml(context.company_name || ('ID ' + context.company_id))}
-    <br><span class="small">ID interno: ${context.company_id}${expired ? ' • sessão expirada: conecte e reabra pelo Admin' : ''}</span>`;
+  box.innerHTML = tcH`<strong>Empresa ativa:</strong> ${escapeHtml(context.company_name || ('ID ' + context.company_id))}
+    <br><span class="small">ID interno: ${context.company_id}${expired ? tcL(' • sessão expirada: conecte e reabra pelo Admin') : ''}</span>`;
 }
 
 function updateNetworkStatus() {
   const el = $('netStatus');
   if (navigator.onLine) {
-    el.textContent = 'Online';
+    el.textContent = tcL('Online');
     el.className = 'status-pill ok';
   } else {
-    el.textContent = 'Offline';
+    el.textContent = tcL('Offline');
     el.className = 'status-pill off';
   }
 }
 
 async function renderPending() {
   const list = await getAllPending();
-  $('countBadge').textContent = `${list.length} pendente${list.length === 1 ? '' : 's'}`;
+  $('countBadge').textContent = `${list.length} ${tcL(list.length === 1 ? 'pendente' : 'pendentes')}`;
   const box = $('pendingList');
   if (!list.length) {
-    box.innerHTML = '<p class="small">Nenhum cadastro pendente nesta empresa.</p>';
+    box.innerHTML = tcH('<p class="small">Nenhum cadastro pendente nesta empresa.</p>');
     return;
   }
   box.innerHTML = '';
@@ -324,12 +324,12 @@ async function renderPending() {
     const url = URL.createObjectURL(item.photo_blob);
     const div = document.createElement('div');
     div.className = 'pending-item';
-    div.innerHTML = `
+    div.innerHTML = tcH`
       <img src="${url}" alt="Foto">
       <div>
         <h4>${escapeHtml(item.tag)} — ${escapeHtml(item.name)}</h4>
         <p>${escapeHtml(item.sector || '-')} • ${escapeHtml(item.location || '-')}</p>
-        <p>Salvo: ${new Date(item.created_at).toLocaleString('pt-BR')}</p>
+        <p>Salvo: ${new Date(item.created_at).toLocaleString(window.TAGCHECK_I18N.locale)}</p>
       </div>
       <div class="mini-actions">
         <button class="secondary" data-sync="${item.id}">Enviar</button>
@@ -338,10 +338,10 @@ async function renderPending() {
     box.appendChild(div);
   }
   box.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
-    if (confirm('Excluir este cadastro pendente desta empresa?')) {
+    if (confirm(tcL('Excluir este cadastro pendente desta empresa?'))) {
       await deletePending(btn.dataset.del);
       await renderPending();
-      toast('Cadastro pendente excluído.');
+      toast(tcL('Cadastro pendente excluído.'));
     }
   });
   box.querySelectorAll('[data-sync]').forEach(btn => btn.onclick = async () => syncOne(Number(btn.dataset.sync)));
@@ -361,15 +361,15 @@ async function saveOffline(event) {
   event.preventDefault();
   const context = currentContext();
   if (!context) {
-    toast('Empresa não validada. Abra o Cadastro Offline pelo Admin V2 com internet pelo menos uma vez.', 'error');
+    toast(tcL('Empresa não validada. Abra o Cadastro Offline pelo Admin V2 com internet pelo menos uma vez.'), 'error');
     return;
   }
 
   const photo = $('photo').files[0];
-  if (!photo) { toast('Selecione ou tire uma foto.', 'error'); return; }
+  if (!photo) { toast(tcL('Selecione ou tire uma foto.'), 'error'); return; }
   const tag = $('tag').value.trim().toUpperCase();
   const name = $('name').value.trim();
-  if (!tag || !name) { toast('TAG e Nome são obrigatórios.', 'error'); return; }
+  if (!tag || !name) { toast(tcL('TAG e Nome são obrigatórios.'), 'error'); return; }
 
   const item = {
     company_id: context.company_id,
@@ -395,7 +395,7 @@ async function saveOffline(event) {
   await addPending(item);
   clearForm();
   await renderPending();
-  toast(`Salvo offline em ${context.company_name || 'empresa atual'}.`, 'ok');
+  toast(tcF`Salvo offline em ${context.company_name || tcL('empresa atual')}.`, 'ok');
 }
 
 function buildFormData(item) {
@@ -408,14 +408,14 @@ function buildFormData(item) {
 
 async function apiFetch(path, options={}) {
   const token = currentToken();
-  if (!token) throw new Error('Sessão online ausente. Reabra pelo Admin V2 antes de sincronizar.');
+  if (!token) throw new Error(tcL('Sessão online ausente. Reabra pelo Admin V2 antes de sincronizar.'));
   const context = currentContext();
-  if (!context) throw new Error('Empresa ativa inválida ou expirada.');
+  if (!context) throw new Error(tcL('Empresa ativa inválida ou expirada.'));
 
   const claims = parseJwt(token);
   if (claims?.company_id != null && Number(claims.company_id) !== context.company_id) {
     clearSession();
-    throw new Error('Empresa do token não corresponde à empresa ativa.');
+    throw new Error(tcL('Empresa do token não corresponde à empresa ativa.'));
   }
 
   const headers = { ...(options.headers || {}), Authorization: `Bearer ${token}` };
@@ -434,7 +434,7 @@ async function apiFetch(path, options={}) {
 async function syncItem(item) {
   const context = currentContext();
   if (!context || Number(item.company_id) !== context.company_id) {
-    throw new Error('Bloqueado: cadastro pertence a outra empresa.');
+    throw new Error(tcL('Bloqueado: cadastro pertence a outra empresa.'));
   }
   try {
     await apiFetch('/equipment', { method: 'POST', body: buildFormData(item) });
@@ -451,7 +451,7 @@ async function syncItem(item) {
 }
 
 async function syncOne(id) {
-  if (!navigator.onLine) { toast('Sem internet para sincronizar.', 'error'); return; }
+  if (!navigator.onLine) { toast(tcL('Sem internet para sincronizar.'), 'error'); return; }
   const all = await getAllPending();
   const item = all.find(x => x.id === Number(id));
   if (!item) return;
@@ -461,19 +461,19 @@ async function syncOne(id) {
     await renderPending();
     toast(action === 'created' ? 'Cadastro enviado para a empresa ativa.' : 'TAG atualizada na empresa ativa.', 'ok');
   } catch (err) {
-    toast(`Falha ao enviar ${item.tag}: ${err.message}`, 'error');
+    toast(tcF`Falha ao enviar ${item.tag}: ${tcL(err.message)}`, 'error');
   }
 }
 
 async function syncAll() {
-  if (!navigator.onLine) { toast('Sem internet para sincronizar.', 'error'); return; }
+  if (!navigator.onLine) { toast(tcL('Sem internet para sincronizar.'), 'error'); return; }
   const context = currentContext();
-  if (!context) { toast('Empresa ativa inválida ou expirada.', 'error'); return; }
+  if (!context) { toast(tcL('Empresa ativa inválida ou expirada.'), 'error'); return; }
   const token = currentToken();
-  if (!token) { toast('Reabra o Cadastro Offline pelo Admin V2 para renovar a sessão.', 'error'); return; }
+  if (!token) { toast(tcL('Reabra o Cadastro Offline pelo Admin V2 para renovar a sessão.'), 'error'); return; }
 
   const all = await getAllPending();
-  if (!all.length) { toast('Não há pendentes nesta empresa.', 'ok'); return; }
+  if (!all.length) { toast(tcL('Não há pendentes nesta empresa.'), 'ok'); return; }
   let ok = 0, fail = 0;
   for (const item of all) {
     if (Number(item.company_id) !== context.company_id) { fail++; continue; }
@@ -488,7 +488,7 @@ async function syncAll() {
     }
   }
   await renderPending();
-  toast(`Sincronização da empresa concluída. Enviados: ${ok}. Falhas: ${fail}.`, fail ? 'error' : 'ok');
+  toast(tcF`Sincronização da empresa concluída. Enviados: ${ok}. Falhas: ${fail}.`, fail ? 'error' : 'ok');
 }
 
 async function validateTokenAndLoadIdentity(token) {
@@ -496,15 +496,15 @@ async function validateTokenAndLoadIdentity(token) {
     headers: { Authorization: `Bearer ${token}`, Accept:'application/json' },
     cache:'no-store'
   });
-  if (!res.ok) throw new Error('Não foi possível validar a sessão da empresa.');
+  if (!res.ok) throw new Error(tcL('Não foi possível validar a sessão da empresa.'));
   return res.json();
 }
 
 async function login() {
-  if (!navigator.onLine) { toast('O login inicial precisa de internet.', 'error'); return; }
+  if (!navigator.onLine) { toast(tcL('O login inicial precisa de internet.'), 'error'); return; }
   const username = $('loginUser').value.trim();
   const password = $('loginPass').value;
-  if (!username || !password) { toast('Informe e-mail/usuário e senha.', 'error'); return; }
+  if (!username || !password) { toast(tcL('Informe e-mail/usuário e senha.'), 'error'); return; }
   try {
     const body = username.includes('@') ? { email: username, password } : { username, password };
     const res = await fetch(`${DEFAULT_API}/auth/login`, {
@@ -516,7 +516,7 @@ async function login() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Falha no login');
     if (data.requires_company_selection) {
-      throw new Error('Este usuário possui mais de uma empresa. Entre pelo Admin V2, selecione a empresa e abra Cadastro Offline.');
+      throw new Error(tcL('Este usuário possui mais de uma empresa. Entre pelo Admin V2, selecione a empresa e abra Cadastro Offline.'));
     }
     const identity = await validateTokenAndLoadIdentity(data.token);
     setSession(data.token, {
@@ -529,7 +529,7 @@ async function login() {
     });
     await openDb(identity.company_id);
     await renderPending();
-    toast(`Empresa ${identity.company_name} validada.`, 'ok');
+    toast(tcF`Empresa ${identity.company_name} validada.`, 'ok');
   } catch (err) {
     toast(err.message, 'error');
   }
@@ -560,7 +560,7 @@ window.addEventListener('message', async event => {
     });
     await openDb(context.company_id);
     await renderPending();
-    toast(`Cadastro Offline vinculado a ${context.company_name || 'empresa atual'}.`, 'ok');
+    toast(tcF`Cadastro Offline vinculado a ${context.company_name || tcL('empresa atual')}.`, 'ok');
     if (event.source && typeof event.source.postMessage === 'function') {
       event.source.postMessage({ type:'TAGCHECK_CAMPO_SESSION_ACK', company_id:context.company_id }, event.origin);
     }
@@ -571,7 +571,7 @@ window.addEventListener('message', async event => {
 
 async function exportJson() {
   const context = currentContext();
-  if (!context) { toast('Empresa não validada.', 'error'); return; }
+  if (!context) { toast(tcL('Empresa não validada.'), 'error'); return; }
   const all = await getAllPending();
   const serializable = [];
   for (const item of all) {
@@ -609,20 +609,20 @@ function base64ToBlob(dataUrl) {
 
 async function importJson(file) {
   const context = currentContext();
-  if (!context) throw new Error('Empresa não validada.');
+  if (!context) throw new Error(tcL('Empresa não validada.'));
   const parsed = JSON.parse(await file.text());
   if (!parsed || Number(parsed.company_id) !== context.company_id || !Array.isArray(parsed.items)) {
-    throw new Error('Backup pertence a outra empresa ou está em formato antigo. Importação bloqueada.');
+    throw new Error(tcL('Backup pertence a outra empresa ou está em formato antigo. Importação bloqueada.'));
   }
   for (const raw of parsed.items) {
     const item = { ...raw };
-    if (Number(item.company_id) !== context.company_id) throw new Error('Backup contém dados de outra empresa.');
+    if (Number(item.company_id) !== context.company_id) throw new Error(tcL('Backup contém dados de outra empresa.'));
     item.photo_blob = typeof item.photo_blob === 'string' ? base64ToBlob(item.photo_blob) : item.photo_blob;
     delete item.id;
     await addPending(item);
   }
   await renderPending();
-  toast('Backup desta empresa importado.', 'ok');
+  toast(tcL('Backup desta empresa importado.'), 'ok');
 }
 
 async function init() {
@@ -634,10 +634,10 @@ async function init() {
     await openDb(context.company_id);
     await renderPending();
     if (storageMode === 'fallback') {
-      toast('Modo offline alternativo ativado neste navegador.', 'ok');
+      toast(tcL('Modo offline alternativo ativado neste navegador.'), 'ok');
     }
   } else {
-    $('pendingList').innerHTML = '<p class="small">Abra pelo Admin V2 para ativar uma empresa neste dispositivo.</p>';
+    $('pendingList').innerHTML = tcH('<p class="small">Abra pelo Admin V2 para ativar uma empresa neste dispositivo.</p>');
   }
 
   $('equipmentForm').addEventListener('submit', saveOffline);
@@ -673,4 +673,4 @@ async function init() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'}).catch(console.warn);
 }
 
-init().catch(err => toast(`Erro inicial: ${err.message}`, 'error'));
+init().catch(err => toast(tcF`Erro inicial: ${tcL(err.message)}`, 'error'));
