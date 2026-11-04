@@ -4,107 +4,109 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
-  <title>TAGCheck Campo Offline</title>
+  <title data-tc-text="TAGCheck Campo Offline">TAGCheck Campo Offline</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" type="image/png" href="./public/favicon.png" />
-  <link rel="stylesheet" href="./styles.css?v=20261006-multiempresa" />
+  <script src="./locale.js?v=20261104-complete"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261104-complete" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
-        <img src="./public/logo.png" alt="Rovix Automation" class="brand-logo" />
+        <img src="./public/logo.png" alt="Rovix Automation" data-tc-alt="Rovix Automation" class="brand-logo" />
         <div>
-          <h1>TAGCheck Campo</h1>
-          <p>Cadastro offline • Rovix Automation</p>
+          <h1><span data-tc-text="TAGCheck Campo">TAGCheck Campo</span></h1>
+          <p><span data-tc-text="Cadastro offline • Rovix Automation">Cadastro offline • Rovix Automation</span></p>
         </div>
       </div>
+      <nav aria-label="Idioma" data-tc-aria-label="Idioma"><button type="button" data-tc-language="pt">Português</button> <button type="button" data-tc-language="en">English</button> <button type="button" data-tc-language="es">Español</button></nav>
       <span id="netStatus" class="status-pill">Verificando...</span>
     </header>
 
     <main class="container">
       <section class="card hero">
         <div>
-          <h2>Cadastro de instrumentos no local</h2>
-          <p>Funciona sem internet. Tire a foto durante o cadastro e sincronize quando voltar o sinal.</p>
+          <h2><span data-tc-text="Cadastro de instrumentos no local">Cadastro de instrumentos no local</span></h2>
+          <p><span data-tc-text="Funciona sem internet. Tire a foto durante o cadastro e sincronize quando voltar o sinal.">Funciona sem internet. Tire a foto durante o cadastro e sincronize quando voltar o sinal.</span></p>
         </div>
         <div class="hero-actions">
-          <button id="installBtn" class="outline hidden">Instalar app</button>
-          <button id="syncBtn">Sincronizar pendentes</button>
+          <button id="installBtn" class="outline hidden" data-tc-text="Instalar app">Instalar app</button>
+          <button id="syncBtn" data-tc-text="Sincronizar pendentes">Sincronizar pendentes</button>
         </div>
       </section>
 
       <section class="grid">
         <form id="equipmentForm" class="card form-card">
-          <h3>Novo cadastro offline</h3>
-          <label>TAG *</label>
-          <input id="tag" name="tag" required placeholder="Ex.: 6-BB-PI-04" autocomplete="off" />
+          <h3><span data-tc-text="Novo cadastro offline">Novo cadastro offline</span></h3>
+          <label data-tc-text="TAG *">TAG *</label>
+          <input id="tag" name="tag" required placeholder="Ex.: 6-BB-PI-04" data-tc-placeholder="Ex.: 6-BB-PI-04" autocomplete="off" />
 
-          <label>Nome / Descrição *</label>
-          <input id="name" name="name" required placeholder="Ex.: Indicador de Pressão" autocomplete="off" />
+          <label data-tc-text="Nome / Descrição *">Nome / Descrição *</label>
+          <input id="name" name="name" required placeholder="Ex.: Indicador de Pressão" data-tc-placeholder="Ex.: Indicador de Pressão" autocomplete="off" />
 
           <div class="two-cols">
-            <div><label>Tipo</label><input id="equipment_type" name="equipment_type" placeholder="Ex.: Manômetro" /></div>
-            <div><label>Setor</label><input id="sector" name="sector" placeholder="Ex.: Casa de Bombas" /></div>
+            <div><label data-tc-text="Tipo">Tipo</label><input id="equipment_type" name="equipment_type" placeholder="Ex.: Manômetro" data-tc-placeholder="Ex.: Manômetro" /></div>
+            <div><label data-tc-text="Setor">Setor</label><input id="sector" name="sector" placeholder="Ex.: Casa de Bombas" data-tc-placeholder="Ex.: Casa de Bombas" /></div>
           </div>
 
-          <label>Localização</label>
-          <input id="location" name="location" placeholder="Ex.: Entrada da casa de bombas" />
+          <label data-tc-text="Localização">Localização</label>
+          <input id="location" name="location" placeholder="Ex.: Entrada da casa de bombas" data-tc-placeholder="Ex.: Entrada da casa de bombas" />
 
           <div class="two-cols">
-            <div><label>Fabricante</label><input id="manufacturer" name="manufacturer" placeholder="Ex.: DIN" /></div>
-            <div><label>Modelo</label><input id="model" name="model" /></div>
-          </div>
-
-          <div class="two-cols">
-            <div><label>Nº de série</label><input id="serial_number" name="serial_number" /></div>
-            <div><label>Status</label><select id="status" name="status"><option>Ativo</option><option>Sem serviço</option><option>Manutenção</option><option>Inativo</option></select></div>
+            <div><label data-tc-text="Fabricante">Fabricante</label><input id="manufacturer" name="manufacturer" placeholder="Ex.: DIN" data-tc-placeholder="Ex.: DIN" /></div>
+            <div><label data-tc-text="Modelo">Modelo</label><input id="model" name="model" /></div>
           </div>
 
           <div class="two-cols">
-            <div><label>Data calibração</label><input id="calibration_date" name="calibration_date" type="date" /></div>
-            <div><label>Próx. calibração</label><input id="next_calibration_date" name="next_calibration_date" type="date" /></div>
+            <div><label data-tc-text="Nº de série">Nº de série</label><input id="serial_number" name="serial_number" /></div>
+            <div><label data-tc-text="Status">Status</label><select id="status" name="status"><option value="Ativo" data-tc-text="Ativo">Ativo</option><option value="Sem serviço" data-tc-text="Sem serviço">Sem serviço</option><option value="Manutenção" data-tc-text="Manutenção">Manutenção</option><option value="Inativo" data-tc-text="Inativo">Inativo</option></select></div>
           </div>
 
-          <label>Observações</label>
-          <textarea id="notes" name="notes" rows="3" placeholder="Anote posição, acesso, condição do instrumento..."></textarea>
+          <div class="two-cols">
+            <div><label data-tc-text="Data calibração">Data calibração</label><input id="calibration_date" name="calibration_date" type="date" /></div>
+            <div><label data-tc-text="Próx. calibração">Próx. calibração</label><input id="next_calibration_date" name="next_calibration_date" type="date" /></div>
+          </div>
 
-          <label>Foto do instrumento *</label>
+          <label data-tc-text="Observações">Observações</label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Anote posição, acesso, condição do instrumento..." data-tc-placeholder="Anote posição, acesso, condição do instrumento..."></textarea>
+
+          <label data-tc-text="Foto do instrumento *">Foto do instrumento *</label>
           <input id="photo" name="photo" type="file" accept="image/*" capture="environment" required />
-          <img id="preview" class="preview hidden" alt="Prévia da foto" />
+          <img id="preview" class="preview hidden" alt="Prévia da foto" data-tc-alt="Prévia da foto" />
 
           <div class="actions">
-            <button type="submit">Salvar offline</button>
-            <button type="button" id="clearBtn" class="outline">Limpar</button>
+            <button type="submit" data-tc-text="Salvar offline">Salvar offline</button>
+            <button type="button" id="clearBtn" class="outline" data-tc-text="Limpar">Limpar</button>
           </div>
         </form>
 
         <aside class="card side-card">
-          <h3>Empresa ativa</h3>
-          <div id="companyContext" class="small">Carregando contexto...</div>
-          <label>API TAGCheck V2</label>
+          <h3><span data-tc-text="Empresa ativa">Empresa ativa</span></h3>
+          <div id="companyContext" class="small"><span data-tc-text="Carregando contexto...">Carregando contexto...</span></div>
+          <label data-tc-text="API TAGCheck V2">API TAGCheck V2</label>
           <input id="apiBase" value="https://tagcheck-fase2-hml-api.onrender.com" readonly />
-          <p class="small">Preferencial: abra este formulário pelo botão <strong>Cadastro Offline</strong> dentro do Admin V2. A empresa selecionada será vinculada automaticamente.</p>
-          <h3>Login alternativo</h3>
+          <p class="small"><span data-tc-text="Preferencial: abra este formulário pelo botão">Preferencial: abra este formulário pelo botão</span> <strong><span data-tc-text="Cadastro Offline">Cadastro Offline</span></strong> <span data-tc-text="dentro do Admin V2. A empresa selecionada será vinculada automaticamente.">dentro do Admin V2. A empresa selecionada será vinculada automaticamente.</span></p>
+          <h3><span data-tc-text="Login alternativo">Login alternativo</span></h3>
           <div class="two-cols">
-            <div><label>E-mail/usuário</label><input id="loginUser" placeholder="usuario@empresa.com" /></div>
-            <div><label>Senha</label><input id="loginPass" type="password" /></div>
+            <div><label data-tc-text="E-mail/usuário">E-mail/usuário</label><input id="loginUser" placeholder="usuario@empresa.com" data-tc-placeholder="usuario@empresa.com" /></div>
+            <div><label data-tc-text="Senha">Senha</label><input id="loginPass" type="password" /></div>
           </div>
-          <button id="loginBtn" type="button" class="secondary">Validar empresa</button>
-          <p class="small">Se o usuário possuir mais de uma empresa, a seleção deve ser feita no Admin V2.</p>
+          <button id="loginBtn" type="button" class="secondary" data-tc-text="Validar empresa">Validar empresa</button>
+          <p class="small"><span data-tc-text="Se o usuário possuir mais de uma empresa, a seleção deve ser feita no Admin V2.">Se o usuário possuir mais de uma empresa, a seleção deve ser feita no Admin V2.</span></p>
 
-          <h3>Backup local</h3>
+          <h3><span data-tc-text="Backup local">Backup local</span></h3>
           <div class="actions stacked">
-            <button id="exportBtn" type="button" class="outline">Exportar pendentes JSON</button>
-            <label class="file-button">Importar JSON<input id="importFile" type="file" accept="application/json" /></label>
+            <button id="exportBtn" type="button" class="outline" data-tc-text="Exportar pendentes JSON">Exportar pendentes JSON</button>
+            <label class="file-button"><span data-tc-text="Importar JSON">Importar JSON</span><input id="importFile" type="file" accept="application/json" /></label>
           </div>
         </aside>
       </section>
 
       <section class="card">
         <div class="section-head">
-          <h3>Cadastros pendentes</h3>
-          <span id="countBadge" class="status-pill neutral">0 pendentes</span>
+          <h3><span data-tc-text="Cadastros pendentes">Cadastros pendentes</span></h3>
+          <span id="countBadge" class="status-pill neutral"><span data-tc-text="0 pendentes">0 pendentes</span></span>
         </div>
         <div id="pendingList" class="pending-list"></div>
       </section>
@@ -112,6 +114,6 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="./app.js?v=20261006-storage-fallback"></script>
+  <script src="./app.js?v=20261104-complete"></script>
 </body>
 </html>
