@@ -1,6 +1,6 @@
-const CACHE_NAME = 'tagcheck-campo-offline-v5-i18n-20261104';
+const CACHE_NAME = 'tagcheck-campo-offline-v6-sync-20261113';
 const ASSETS = [
-  './', './index.html', './styles.css', './styles.css?v=20261104-complete', './app.js', './app.js?v=20261104-complete', './locale.js?v=20261104-complete',
+  './', './index.html', './styles.css', './styles.css?v=20261104-complete', './app.js', './app.js?v=20261113-sync', './locale.js?v=20261113-sync',
   './manifest.webmanifest', './public/logo.png', './public/favicon.png'
 ];
 
@@ -11,7 +11,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith('tagcheck-campo-') && key !== CACHE_NAME).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });

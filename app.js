@@ -13,6 +13,8 @@ let db = null;
 let dbCompanyId = null;
 let storageMode = 'indexedDB';
 let deferredPrompt;
+let syncing = false;
+let toastTimer;
 
 const $ = id => document.getElementById(id);
 
@@ -21,7 +23,8 @@ function toast(msg, type='') {
   el.textContent = tcL(msg);
   el.className = `toast ${type}`;
   el.classList.remove('hidden');
-  setTimeout(() => el.classList.add('hidden'), 3500);
+  clearTimeout(toastTimer);
+  if (type !== 'error') toastTimer = setTimeout(() => el.classList.add('hidden'), 5000);
 }
 
 function escapeHtml(v) {
@@ -250,8 +253,7 @@ async function addPending(item) {
   });
 }
 
-async function deletePending(id) {
-  const context = currentContext();
+async function deletePending(id, context = currentContext()) {
   if (!context) throw new Error(tcL('Empresa offline inválida.'));
   const database = await openDb(context.company_id);
 
@@ -344,7 +346,7 @@ async function renderPending() {
       toast(tcL('Cadastro pendente excluído.'));
     }
   });
-  box.querySelectorAll('[data-sync]').forEach(btn => btn.onclick = async () => syncOne(Number(btn.dataset.sync)));
+  box.querySelectorAll('[data-sync]').forEach(btn => btn.onclick = async () => syncPending(Number(btn.dataset.sync)));
 }
 
 function clearForm() {
@@ -398,15 +400,42 @@ async function saveOffline(event) {
   toast(tcF`Salvo offline em ${context.company_name || tcL('empresa atual')}.`, 'ok');
 }
 
-function buildFormData(item) {
+async function photoForUpload(blob) {
+  if (!blob?.size) throw new Error(tcL('Foto indisponível. Confira o cadastro pendente.'));
+  if (blob.size <= 1024 * 1024) return blob;
+
+  const image = new Image();
+  const url = URL.createObjectURL(blob);
+  try {
+    image.src = url;
+    await image.decode();
+    const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d', { alpha: false });
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const jpeg = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.84));
+    return jpeg?.size && jpeg.size < blob.size ? jpeg : blob;
+  } catch (_) {
+    // Keep formats the browser cannot decode available for server-side handling.
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function buildFormData(item, photo) {
   const fd = new FormData();
   ['tag','name','equipment_type','sector','location','manufacturer','model','serial_number','calibration_date','next_calibration_date','status','notes']
     .forEach(k => fd.append(k, item[k] || ''));
-  fd.append('photo', item.photo_blob, item.photo_name || `${item.tag}.jpg`);
+  fd.append('photo', photo, photo === item.photo_blob ? item.photo_name || `${item.tag}.jpg` : `${item.tag}.jpg`);
   return fd;
 }
 
-async function apiFetch(path, options={}) {
+async function apiFetch(path, options={}, companyId) {
   const token = currentToken();
   if (!token) throw new Error(tcL('Sessão online ausente. Reabra pelo Admin V2 antes de sincronizar.'));
   const context = currentContext();
@@ -418,11 +447,30 @@ async function apiFetch(path, options={}) {
     throw new Error(tcL('Empresa do token não corresponde à empresa ativa.'));
   }
 
+  if (context.company_id !== companyId) {
+    throw new Error(tcL('Bloqueado: cadastro pertence a outra empresa.'));
+  }
   const headers = { ...(options.headers || {}), Authorization: `Bearer ${token}` };
-  const res = await fetch(`${DEFAULT_API}${path}`, { ...options, headers, cache:'no-store' });
-  let data = null;
-  try { data = await res.json(); } catch (_) {}
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+  let res;
+  let data;
+  try {
+    res = await fetch(`${DEFAULT_API}${path}`, { ...options, headers, cache:'no-store', signal:controller.signal });
+    data = await res.json();
+  } catch (_) {
+    const error = new Error(tcL('A API não confirmou o envio. O cadastro continua na fila. Confira a conexão e tente novamente.'));
+    error.transport = true;
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (!res.ok) {
+    if (res.status === 401) {
+      const err = new Error(tcL('Reabra o Cadastro Offline pelo Admin V2 para renovar a sessão.'));
+      err.status = 401;
+      throw err;
+    }
     const msg = data?.detail || `Erro HTTP ${res.status}`;
     const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     err.status = res.status;
@@ -436,59 +484,66 @@ async function syncItem(item) {
   if (!context || Number(item.company_id) !== context.company_id) {
     throw new Error(tcL('Bloqueado: cadastro pertence a outra empresa.'));
   }
+  const photo = await photoForUpload(item.photo_blob);
   try {
-    await apiFetch('/equipment', { method: 'POST', body: buildFormData(item) });
+    await apiFetch('/equipment', { method: 'POST', body: buildFormData(item, photo) }, context.company_id);
     return 'created';
   } catch (err) {
     const msg = String(err.message || '').toLowerCase();
-    if (err.status === 400 && msg.includes('tag')) {
-      const existing = await apiFetch(`/equipment/tag/${encodeURIComponent(item.tag)}`);
-      await apiFetch(`/equipment/${existing.id}`, { method: 'PUT', body: buildFormData(item) });
+    if (err.status === 400 && /^tag (?:já|jã¡) cadastrada\.?$/i.test(msg)) {
+      const existing = await apiFetch(`/equipment/tag/${encodeURIComponent(item.tag)}`, {}, context.company_id);
+      await apiFetch(`/equipment/${existing.id}`, { method: 'PUT', body: buildFormData(item, photo) }, context.company_id);
       return 'updated';
     }
     throw err;
   }
 }
 
-async function syncOne(id) {
-  if (!navigator.onLine) { toast(tcL('Sem internet para sincronizar.'), 'error'); return; }
-  const all = await getAllPending();
-  const item = all.find(x => x.id === Number(id));
-  if (!item) return;
-  try {
-    const action = await syncItem(item);
-    await deletePending(id);
-    await renderPending();
-    toast(action === 'created' ? 'Cadastro enviado para a empresa ativa.' : 'TAG atualizada na empresa ativa.', 'ok');
-  } catch (err) {
-    toast(tcF`Falha ao enviar ${item.tag}: ${tcL(err.message)}`, 'error');
-  }
-}
-
-async function syncAll() {
+async function syncPending(id) {
+  if (syncing) return;
   if (!navigator.onLine) { toast(tcL('Sem internet para sincronizar.'), 'error'); return; }
   const context = currentContext();
-  if (!context) { toast(tcL('Empresa ativa inválida ou expirada.'), 'error'); return; }
-  const token = currentToken();
-  if (!token) { toast(tcL('Reabra o Cadastro Offline pelo Admin V2 para renovar a sessão.'), 'error'); return; }
-
-  const all = await getAllPending();
-  if (!all.length) { toast(tcL('Não há pendentes nesta empresa.'), 'ok'); return; }
-  let ok = 0, fail = 0;
-  for (const item of all) {
-    if (Number(item.company_id) !== context.company_id) { fail++; continue; }
-    try {
-      await syncItem(item);
-      await deletePending(item.id);
-      ok++;
-    } catch (err) {
-      console.error(item.tag, err);
-      fail++;
-      if (err.status === 401 || err.status === 403) break;
-    }
+  if (!context || !currentToken()) {
+    toast(tcL('Reabra o Cadastro Offline pelo Admin V2 para renovar a sessão.'), 'error');
+    return;
   }
-  await renderPending();
-  toast(tcF`Sincronização da empresa concluída. Enviados: ${ok}. Falhas: ${fail}.`, fail ? 'error' : 'ok');
+
+  syncing = true;
+  const buttons = [$('syncBtn'), ...$('pendingList').querySelectorAll('[data-sync], [data-del]')];
+  for (const button of buttons) button.disabled = true;
+  toast('Enviando cadastro. Aguarde a confirmação.');
+  let sent = 0;
+  let failed = 0;
+  let lastError = '';
+  try {
+    const all = await getAllPending();
+    const queue = id == null ? all : all.filter(item => item.id === Number(id));
+    if (!queue.length) { toast('Não há pendentes nesta empresa.', 'ok'); return; }
+    for (const item of queue) {
+      let action;
+      try {
+        action = await syncItem(item);
+        await deletePending(item.id, context);
+        sent++;
+      } catch (err) {
+        failed++;
+        lastError = tcF`Falha ao enviar ${item.tag}: ${tcL(err.message)}`;
+        if (err.transport || err.status === 401 || err.status === 403) break;
+        continue;
+      }
+      if (id != null) {
+        toast(action === 'created' ? 'Cadastro enviado para a empresa ativa.' : 'TAG atualizada na empresa ativa.', 'ok');
+      }
+    }
+    await renderPending();
+    if (failed) toast(lastError, 'error');
+    else if (id == null) toast(tcF`Sincronização da empresa concluída. Enviados: ${sent}. Falhas: ${failed}.`, 'ok');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    syncing = false;
+    for (const button of buttons) button.disabled = false;
+  }
 }
 
 async function validateTokenAndLoadIdentity(token) {
@@ -642,7 +697,7 @@ async function init() {
 
   $('equipmentForm').addEventListener('submit', saveOffline);
   $('clearBtn').onclick = clearForm;
-  $('syncBtn').onclick = syncAll;
+  $('syncBtn').onclick = () => syncPending();
   $('loginBtn').onclick = login;
   $('exportBtn').onclick = exportJson;
   $('importFile').onchange = e => e.target.files[0] && importJson(e.target.files[0]).catch(err => toast(err.message, 'error'));

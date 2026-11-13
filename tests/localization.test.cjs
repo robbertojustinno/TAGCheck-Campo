@@ -12,5 +12,42 @@ test('offline rendering translates captions and preserves instrument data',async
  }
 });
 test('offline shell loads language runtime first and retains canonical status values',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261104-complete'));
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261113-sync'));
+});
+
+test('sync keeps the registration after a network failure and clears it after confirmation', async () => {
+ const { c, elements } = runtime('pt-BR');
+ Object.assign(c, { AbortController, FormData, clearTimeout() {} });
+ elements.syncBtn = { disabled: false };
+ elements.toast = { classList: { add() {}, remove() {} } };
+ const company = { company_id: 5 };
+ let pending = [{ id: 1, company_id: 5, tag: 'PT-001', photo_blob: new Blob(['photo']) }];
+ let requests = 0;
+ c.currentContext = () => company;
+ c.currentToken = () => 'test-token';
+ c.getAllPending = async () => pending;
+ c.renderPending = async () => {};
+ c.deletePending = async (id, context) => {
+  assert.equal(context, company);
+  pending = pending.filter(item => item.id !== id);
+ };
+ c.fetch = async (url, options) => {
+  requests++;
+  assert.match(url, /\/equipment$/);
+  assert.equal(options.method, 'POST');
+  assert.equal(options.body.get('tag'), 'PT-001');
+  assert.equal(options.body.get('photo').size, 5);
+  if (requests === 1) throw new TypeError('Failed to fetch');
+  return { ok: true, json: async () => ({ id: 21, tag: 'PT-001' }) };
+ };
+
+ await c.syncPending(1);
+ assert.equal(pending.length, 1);
+ assert.match(elements.toast.textContent, /continua na fila/);
+ assert.equal(elements.syncBtn.disabled, false);
+
+ await c.syncPending(1);
+ assert.equal(pending.length, 0);
+ assert.match(elements.toast.textContent, /Cadastro enviado/);
+ assert.equal(requests, 2);
 });
