@@ -67,13 +67,17 @@ test('login waits for the API and submits credentials once after startup', async
  });
  const requests = [];
  let healthAttempts = 0;
- c.fetchForLogin = async (path, options) => {
+ c.fetchForLogin = async (path, options, timeout) => {
   requests.push(path);
   if (path === '/health') {
    healthAttempts++;
+   assert.equal(timeout, 90000);
    assert.equal(options.body, undefined);
    if (healthAttempts === 1) throw new TypeError('Failed to fetch');
-   return { ok: healthAttempts >= 3 };
+   return { ok: true, json: async () => {
+    if (healthAttempts === 2) throw new SyntaxError('HTML during startup');
+    return { ok: true };
+   } };
   }
   assert.equal(options.method, 'POST');
   assert.deepEqual(JSON.parse(options.body), { email: 'operator@example.invalid', password: 'test-password' });
@@ -88,7 +92,7 @@ test('login waits for the API and submits credentials once after startup', async
  assert.equal(elements.loginBtn.disabled, false);
 });
 
-test('login stops checking server readiness after 90 seconds', async () => {
+test('login stops checking server readiness after 120 seconds', async () => {
  const { c } = runtime('pt-BR');
  let now = 0;
  c.Date = { now: () => now };
@@ -99,5 +103,5 @@ test('login stops checking server readiness after 90 seconds', async () => {
   throw new TypeError('Failed to fetch');
  };
  await assert.rejects(c.waitForLoginApi(), /não respondeu a tempo/);
- assert.equal(now, 90000);
+ assert.equal(now, 120000);
 });

@@ -557,11 +557,11 @@ async function fetchForLogin(path, options = {}, timeoutMs = 30000) {
 }
 
 async function waitForLoginApi() {
-  const deadline = Date.now() + 90000;
+  const deadline = Date.now() + 120000;
   while (navigator.onLine && Date.now() < deadline) {
     try {
-      const response = await fetchForLogin('/health', {}, Math.min(15000, deadline - Date.now()));
-      if (response.ok) return;
+      const response = await fetchForLogin('/health', {}, Math.min(90000, deadline - Date.now()));
+      if (response.ok && (await response.json())?.ok === true) return;
     } catch {
       // A new probe can succeed while the API is starting.
     }
