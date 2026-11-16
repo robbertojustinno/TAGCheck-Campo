@@ -1,6 +1,6 @@
-const CACHE_NAME = 'tagcheck-campo-offline-v6-sync-20261113';
+const CACHE_NAME = 'tagcheck-campo-offline-20261116-login';
 const ASSETS = [
-  './', './index.html', './styles.css', './styles.css?v=20261104-complete', './app.js', './app.js?v=20261113-sync', './locale.js?v=20261113-sync',
+  './', './index.html', './styles.css', './styles.css?v=20261104-complete', './app.js', './app.js?v=20261116-login', './locale.js?v=20261116-login',
   './manifest.webmanifest', './public/logo.png', './public/favicon.png'
 ];
 

@@ -12,7 +12,7 @@ test('offline rendering translates captions and preserves instrument data',async
  }
 });
 test('offline shell loads language runtime first and retains canonical status values',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261113-sync'));
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261116-login'));
 });
 
 test('sync keeps the registration after a network failure and clears it after confirmation', async () => {
@@ -50,4 +50,54 @@ test('sync keeps the registration after a network failure and clears it after co
  assert.equal(pending.length, 0);
  assert.match(elements.toast.textContent, /Cadastro enviado/);
  assert.equal(requests, 2);
+});
+
+test('login waits for the API and submits credentials once after startup', async () => {
+ const { c, elements } = runtime('pt-BR');
+ Object.assign(elements, {
+  loginBtn: { disabled: false },
+  loginUser: { value: 'operator@example.invalid' },
+  loginPass: { value: 'test-password' },
+  toast: { classList: { add() {}, remove() {} } }
+ });
+ Object.assign(c, {
+  AbortController,
+  clearTimeout() {},
+  setTimeout(callback, delay) { if (delay === 2000) queueMicrotask(callback); }
+ });
+ const requests = [];
+ let healthAttempts = 0;
+ c.fetchForLogin = async (path, options) => {
+  requests.push(path);
+  if (path === '/health') {
+   healthAttempts++;
+   assert.equal(options.body, undefined);
+   if (healthAttempts === 1) throw new TypeError('Failed to fetch');
+   return { ok: healthAttempts >= 3 };
+  }
+  assert.equal(options.method, 'POST');
+  assert.deepEqual(JSON.parse(options.body), { email: 'operator@example.invalid', password: 'test-password' });
+  return { ok: false, json: async () => ({ detail: 'Credenciais inválidas.' }) };
+ };
+
+ const firstClick = c.login();
+ await c.login();
+ await firstClick;
+ assert.deepEqual(requests, ['/health', '/health', '/health', '/auth/login']);
+ assert.match(elements.toast.textContent, /Credenciais inválidas/);
+ assert.equal(elements.loginBtn.disabled, false);
+});
+
+test('login stops checking server readiness after 90 seconds', async () => {
+ const { c } = runtime('pt-BR');
+ let now = 0;
+ c.Date = { now: () => now };
+ c.setTimeout = (callback, delay) => { now += delay; callback(); };
+ c.fetchForLogin = async (path, options, timeout) => {
+  assert.equal(path, '/health');
+  now += timeout;
+  throw new TypeError('Failed to fetch');
+ };
+ await assert.rejects(c.waitForLoginApi(), /não respondeu a tempo/);
+ assert.equal(now, 90000);
 });

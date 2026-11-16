@@ -24,7 +24,7 @@ function toast(msg, type='') {
   el.className = `toast ${type}`;
   el.classList.remove('hidden');
   clearTimeout(toastTimer);
-  if (type !== 'error') toastTimer = setTimeout(() => el.classList.add('hidden'), 5000);
+  if (type !== 'error' && type !== 'pending') toastTimer = setTimeout(() => el.classList.add('hidden'), 5000);
 }
 
 function escapeHtml(v) {
@@ -546,27 +546,55 @@ async function syncPending(id) {
   }
 }
 
+async function fetchForLogin(path, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(`${DEFAULT_API}${path}`, { ...options, cache:'no-store', signal:controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function waitForLoginApi() {
+  const deadline = Date.now() + 90000;
+  while (navigator.onLine && Date.now() < deadline) {
+    try {
+      const response = await fetchForLogin('/health', {}, Math.min(15000, deadline - Date.now()));
+      if (response.ok) return;
+    } catch {
+      // A new probe can succeed while the API is starting.
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await new Promise(resolve => setTimeout(resolve, Math.min(2000, remaining)));
+  }
+  throw new Error(tcL('O servidor não respondeu a tempo. Confira a conexão e tente entrar novamente.'));
+}
+
 async function validateTokenAndLoadIdentity(token) {
-  const res = await fetch(`${DEFAULT_API}/auth/me`, {
-    headers: { Authorization: `Bearer ${token}`, Accept:'application/json' },
-    cache:'no-store'
+  const res = await fetchForLogin('/auth/me', {
+    headers: { Authorization: `Bearer ${token}`, Accept:'application/json' }
   });
   if (!res.ok) throw new Error(tcL('Não foi possível validar a sessão da empresa.'));
   return res.json();
 }
 
 async function login() {
+  const button = $('loginBtn');
+  if (button.disabled) return;
   if (!navigator.onLine) { toast(tcL('O login inicial precisa de internet.'), 'error'); return; }
   const username = $('loginUser').value.trim();
   const password = $('loginPass').value;
   if (!username || !password) { toast(tcL('Informe e-mail/usuário e senha.'), 'error'); return; }
+  button.disabled = true;
+  toast('Conectando ao servidor. Se estiver em repouso, aguarde enquanto ele inicia.', 'pending');
   try {
+    await waitForLoginApi();
     const body = username.includes('@') ? { email: username, password } : { username, password };
-    const res = await fetch(`${DEFAULT_API}/auth/login`, {
+    const res = await fetchForLogin('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      cache:'no-store'
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Falha no login');
@@ -587,6 +615,8 @@ async function login() {
     toast(tcF`Empresa ${identity.company_name} validada.`, 'ok');
   } catch (err) {
     toast(err.message, 'error');
+  } finally {
+    button.disabled = false;
   }
 }
 
