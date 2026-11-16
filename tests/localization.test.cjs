@@ -12,7 +12,7 @@ test('offline rendering translates captions and preserves instrument data',async
  }
 });
 test('offline shell loads language runtime first and retains canonical status values',()=>{
- const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261116-login'));
+ const html=fs.readFileSync('index.html','utf8');assert.ok(html.indexOf('locale.js')<html.indexOf('app.js'));for(const status of ['Ativo','Sem serviço','Manutenção','Inativo'])assert.ok(html.includes('value="'+status+'"'));assert.ok(fs.readFileSync('sw.js','utf8').includes('./locale.js?v=20261116-login-msg'));
 });
 
 test('sync keeps the registration after a network failure and clears it after confirmation', async () => {

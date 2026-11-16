@@ -587,7 +587,7 @@ async function login() {
   const password = $('loginPass').value;
   if (!username || !password) { toast(tcL('Informe e-mail/usuário e senha.'), 'error'); return; }
   button.disabled = true;
-  toast('Conectando ao servidor. Se estiver em repouso, aguarde enquanto ele inicia.', 'pending');
+  toast('Conectando ao servidor.', 'pending');
   try {
     await waitForLoginApi();
     const body = username.includes('@') ? { email: username, password } : { username, password };
